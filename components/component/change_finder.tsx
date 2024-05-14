@@ -1,16 +1,51 @@
 // @ts-nocheck
 // @ts-ignore
+import { useEffect, useState } from 'react';
 import Link from "next/link";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { useState } from "react";
+import { Loader2 } from "lucide-react";
 
 export function Change_Finder() {
   const [mainFile, setMainFile] = useState(null);
   const [variantFile, setVariantFile] = useState(null);
   const [progress, setProgress] = useState(0);
+  const [isLoading, setIsLoading] = useState(false); // Default loading state to false
+  const [consoleLog, setConsoleLog] = useState('');
+
+  useEffect(() => {
+    console.log('EventSource connection established');
+    const eventSource = new EventSource('/api/progress');
+  
+    eventSource.onopen = () => {
+      console.log('EventSource connection opened');
+    };
+  
+    eventSource.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      console.log('Received progress update:', data);
+      setProgress(data.progress);
+      setConsoleLog(data.consoleLog || '');
+    };
+  
+    eventSource.onerror = (error) => {
+      console.error('EventSource error:', error);
+    };
+  
+    return () => {
+      console.log('Cleanup function: EventSource connection closed');
+      // Remove the event listeners before closing the connection
+      eventSource.onopen = null;
+      eventSource.onmessage = null;
+      eventSource.onerror = null;
+      // Close the connection
+      eventSource.close();
+    };
+  }, []);
+  
+  
 
   const handleFileUpload = async () => {
     if (!mainFile || !variantFile) {
@@ -18,34 +53,29 @@ export function Change_Finder() {
       return;
     }
 
+    setIsLoading(true); // Set loading state to true before file upload
+
     const formData = new FormData();
     formData.append("mainFile", mainFile);
     formData.append("variantFile", variantFile);
 
     try {
-      function generateBoundary() {
-        return (
-          "---------------------------" +
-          Math.floor(Math.random() * Math.pow(10, 15)).toString(36)
-        );
-      }
-      
-      const boundary = generateBoundary();
-      const headers = {
-        'Content-Type': `multipart/form-data; boundary=${boundary}`
-      };
-    
-      const response = await fetch("/api/excel", {
-        method: "POST", 
+      const response = await fetch('/api/excel', {
+        method: 'POST',
         body: formData,
-        headers: headers,
       });
-    
-      const data = await response.json();
-      console.log(data);
-      // Handle the response from the API route
+  
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+  
+      const { downloadLink } = await response.json();
+      window.open(downloadLink);
     } catch (error) {
-      console.error("Error:", error);
+      console.error('Error:', error);
+      alert('An error occurred during file upload.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -94,13 +124,25 @@ export function Change_Finder() {
                 />
               </div>
             </div>
-            <Button className="w-full" onClick={handleFileUpload}>
-              Compare Files
+            <Button
+              className="w-full"
+              onClick={handleFileUpload}
+              disabled={isLoading} // Disable the button when loading
+            >
+              {isLoading ? ( // Render the loading indicator when loading
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Compairing...
+                </>
+              ) : (
+                "Compare Files"
+              )}
             </Button>
-            <div className="text-gray-900 dark:text-white">
+            {/* <div className="text-gray-900 dark:text-white">
               Comparison Progress:
-            </div>
-            <div className="space-y-2 text-center">
+            </div> */}
+            {/* <div className="space-y-2 text-center">
+              <div className="text-gray-600 dark:text-gray-400">{consoleLog}</div>
               <Progress
                 className="h-2 bg-gray-300 dark:bg-gray-800"
                 value={progress}
@@ -108,7 +150,7 @@ export function Change_Finder() {
               <div className="text-gray-600 dark:text-gray-400">
                 {progress}% Complete
               </div>
-            </div>
+            </div> */}
           </div>
         </div>
       </main>
