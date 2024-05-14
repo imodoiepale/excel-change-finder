@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Loader2 } from "lucide-react";
+import toast, { Toaster } from 'react-hot-toast';
 
 export function Change_Finder() {
   const [mainFile, setMainFile] = useState(null);
@@ -14,6 +15,7 @@ export function Change_Finder() {
   const [progress, setProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(false); // Default loading state to false
   const [consoleLog, setConsoleLog] = useState('');
+  const [downloadedFilePath, setDownloadedFilePath] = useState(null);
 
   useEffect(() => {
     console.log('EventSource connection established');
@@ -28,6 +30,9 @@ export function Change_Finder() {
       console.log('Received progress update:', data);
       setProgress(data.progress);
       setConsoleLog(data.consoleLog || '');
+      if (data.progress === 100) {
+        setDownloadedFilePath('/Comparison Results.xlsx');
+      }
     };
   
     eventSource.onerror = (error) => {
@@ -70,7 +75,7 @@ export function Change_Finder() {
       }
   
       const { downloadLink } = await response.json();
-      window.open(downloadLink);
+      toast.success('Successfully Compared Files!');
     } catch (error) {
       console.error('Error:', error);
       alert('An error occurred during file upload.');
@@ -81,6 +86,10 @@ export function Change_Finder() {
 
   return (
     <div className="flex min-h-screen flex-col">
+      <Toaster
+        position="bottom-right"
+        reverseOrder={false}
+      />
       <header className="bg-gray-900 py-4 px-6 text-white">
         <div className="container mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-4">
@@ -138,6 +147,14 @@ export function Change_Finder() {
                 "Compare Files"
               )}
             </Button>
+            {downloadedFilePath && (
+              <div className="text-center">
+                <Button className="mt-4" onClick={() => window.open(downloadedFilePath)}>
+                  Open Compared File
+                </Button>
+              </div>
+            )}
+
             {/* <div className="text-gray-900 dark:text-white">
               Comparison Progress:
             </div> */}
@@ -155,7 +172,7 @@ export function Change_Finder() {
         </div>
       </main>
       <footer className="bg-gray-900 py-4 px-6 text-white">
-        <div className="container mx-auto flex items-center ">
+        <div className="container mx-auto flex items-center justify-center">
           <p>
             © 2024 Excel Comparator. All rights reserved by{" "}
             <Link
