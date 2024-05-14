@@ -144,10 +144,17 @@ export function Change_Finder() {
                 "Compare Files"
               )}
             </Button>
-            <div className="text-center">
-              <Link href="/Comparison Results.xlsx" passHref>
-                <Button className="w-full mt-4">Open Compared File</Button>
-              </Link>
+            <div className=" justify-center text-center flex space-x-6 mt-6">
+              <div>
+                <Link href="/Comparison Results.xlsx" passHref>
+                  <Button className="w-full ">Download Compared File</Button>
+                </Link>
+              </div>
+              <div>
+                <Button className="w-full" onClick={() => window.location.reload()}>
+                  Refresh Page
+                </Button>
+              </div>
             </div>
           </div>
         </div>
