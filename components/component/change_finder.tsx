@@ -13,9 +13,8 @@ export function Change_Finder() {
   const [mainFile, setMainFile] = useState(null);
   const [variantFile, setVariantFile] = useState(null);
   const [progress, setProgress] = useState(0);
-  const [isLoading, setIsLoading] = useState(false); // Default loading state to false
+  const [isLoading, setIsLoading] = useState(false);
   const [consoleLog, setConsoleLog] = useState('');
-  const [downloadedFilePath, setDownloadedFilePath] = useState(null);
 
   useEffect(() => {
     console.log('EventSource connection established');
@@ -30,9 +29,6 @@ export function Change_Finder() {
       console.log('Received progress update:', data);
       setProgress(data.progress);
       setConsoleLog(data.consoleLog || '');
-      if (data.progress === 100) {
-        setDownloadedFilePath('/Comparison Results.xlsx');
-      }
     };
   
     eventSource.onerror = (error) => {
@@ -41,24 +37,20 @@ export function Change_Finder() {
   
     return () => {
       console.log('Cleanup function: EventSource connection closed');
-      // Remove the event listeners before closing the connection
       eventSource.onopen = null;
       eventSource.onmessage = null;
       eventSource.onerror = null;
-      // Close the connection
       eventSource.close();
     };
   }, []);
   
-  
-
   const handleFileUpload = async () => {
     if (!mainFile || !variantFile) {
       alert("Please select both main and variant Excel files.");
       return;
     }
 
-    setIsLoading(true); // Set loading state to true before file upload
+    setIsLoading(true);
 
     const formData = new FormData();
     formData.append("mainFile", mainFile);
@@ -74,15 +66,15 @@ export function Change_Finder() {
         throw new Error('Network response was not ok');
       }
   
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'Comparison Results.xlsx';
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      
+      // const blob = await response.blob();
+      // const url = window.URL.createObjectURL(blob);
+      // const a = document.createElement('a');
+      // a.href = url;
+      // a.download = 'Comparison Results.xlsx';
+      // document.body.appendChild(a);
+      // a.click();
+      // window.URL.revokeObjectURL(url);
+
       toast.success('Successfully Compared Files!');
     } catch (error) {
       console.error('Error:', error);
@@ -94,10 +86,7 @@ export function Change_Finder() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Toaster
-        position="bottom-right"
-        reverseOrder={false}
-      />
+      <Toaster position="bottom-right" reverseOrder={false} />
       <header className="bg-gray-900 py-4 px-6 text-white">
         <div className="container mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-4">
@@ -144,38 +133,22 @@ export function Change_Finder() {
             <Button
               className="w-full"
               onClick={handleFileUpload}
-              disabled={isLoading} // Disable the button when loading
+              disabled={isLoading}
             >
-              {isLoading ? ( // Render the loading indicator when loading
+              {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Compairing...
+                  Comparing...
                 </>
               ) : (
                 "Compare Files"
               )}
             </Button>
-            {downloadedFilePath && (
-              <div className="text-center">
-                <Button className="mt-4" onClick={() => window.open(downloadedFilePath)}>
-                  Open Compared File
-                </Button>
-              </div>
-            )}
-
-            {/* <div className="text-gray-900 dark:text-white">
-              Comparison Progress:
-            </div> */}
-            {/* <div className="space-y-2 text-center">
-              <div className="text-gray-600 dark:text-gray-400">{consoleLog}</div>
-              <Progress
-                className="h-2 bg-gray-300 dark:bg-gray-800"
-                value={progress}
-              />
-              <div className="text-gray-600 dark:text-gray-400">
-                {progress}% Complete
-              </div>
-            </div> */}
+            <div className="text-center">
+              <Link href="/Comparison Results.xlsx" passHref>
+                <Button className="w-full mt-4">Open Compared File</Button>
+              </Link>
+            </div>
           </div>
         </div>
       </main>
