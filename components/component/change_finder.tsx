@@ -74,7 +74,15 @@ export function Change_Finder() {
         throw new Error('Network response was not ok');
       }
   
-      const { downloadLink } = await response.json();
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'Comparison Results.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      
       toast.success('Successfully Compared Files!');
     } catch (error) {
       console.error('Error:', error);
