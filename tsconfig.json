@@ -21,6 +21,6 @@
       "@/*": ["./*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "pages/api/excel/index.ts", "pages/api/excel/progress.ts"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "pages/api/excel/index.ts", "pages/api/excel/progress.ts", "pages/api/api-middleware.js"],
   "exclude": ["node_modules"]
 }
