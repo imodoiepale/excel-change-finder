@@ -1,3 +1,6 @@
+
+// @ts-nocheck
+// @ts-ignore
 // @ts-nocheck
 // @ts-ignore
 import { useEffect, useState } from 'react';
@@ -15,76 +18,39 @@ export function Change_Finder() {
   const [progress, setProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [consoleLog, setConsoleLog] = useState('');
+  const [downloadedFilePath, setDownloadedFilePath] = useState(null);
 
-  useEffect(() => {
-    console.log('EventSource connection established');
-    const eventSource = new EventSource('/api/progress');
-  
-    eventSource.onopen = () => {
-      console.log('EventSource connection opened');
-    };
-  
-    eventSource.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      console.log('Received progress update:', data);
-      console.log(data.progress);
-      setProgress(data.progress);
-      setConsoleLog(data.consoleLog || '');
-    };
-  
-    eventSource.onerror = (error) => {
-      console.error('EventSource error:', error);
-    };
-  
-    return () => {
-      console.log('Cleanup function: EventSource connection closed');
-      eventSource.onopen = null;
-      eventSource.onmessage = null;
-      eventSource.onerror = null;
-      eventSource.close();
-    };
-  }, []);
-  
   const handleFileUpload = async () => {
     if (!mainFile || !variantFile) {
-      alert("Please select both main and variant Excel files.");
+      toast.error('Please select both main and variant files');
       return;
     }
 
     setIsLoading(true);
 
     const formData = new FormData();
-    formData.append("mainFile", mainFile);
-    formData.append("variantFile", variantFile);
+    formData.append('mainFile', mainFile);
+    formData.append('variantFile', variantFile);
 
     try {
-      const response = await fetch('/api/excel', {
+      const response = await fetch('/api/compare', {
         method: 'POST',
         body: formData,
       });
-  
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-  
-      // const blob = await response.blob();
-      // const url = window.URL.createObjectURL(blob);
-      // const a = document.createElement('a');
-      // a.href = url;
-      // a.download = 'Comparison Results.xlsx';
-      // document.body.appendChild(a);
-      // a.click();
-      // window.URL.revokeObjectURL(url);
 
-      toast.success('Successfully Compared Files!');
+      if (!response.ok) {
+        throw new Error('Error comparing files');
+      }
+
+      const data = await response.json();
+      setDownloadedFilePath(data.resultFilePath); 
     } catch (error) {
       console.error('Error:', error);
-      alert('An error occurred during file upload.');
+      toast.error('Error comparing files. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
-
   return (
     <div className="flex min-h-screen flex-col">
       <Toaster position="bottom-right" reverseOrder={false} />
@@ -96,6 +62,7 @@ export function Change_Finder() {
           </div>
         </div>
       </header>
+
       <main className="flex-1 bg-gray-100 py-12 px-6 dark:bg-gray-900 ">
         <div className="container mx-auto max-w-3xl space-y-8">
           <div className="space-y-4">
@@ -106,6 +73,7 @@ export function Change_Finder() {
               Upload your main and variant Excel files to compare the changes.
             </p>
           </div>
+
           <div className="space-y-6">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
@@ -139,7 +107,7 @@ export function Change_Finder() {
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Comparing...
+                  Compairing...
                 </>
               ) : (
                 "Compare Files"
@@ -172,24 +140,40 @@ export function Change_Finder() {
                   Refresh Page
                 </Button>
               </div>
+
+            {/*  (Optional) Progress bar and logs */}
+            <div className="text-gray-900 dark:text-white">
+              Comparison Progress:
+            </div>
+            <div className="space-y-2 text-center">
+              <div className="text-gray-600 dark:text-gray-400">
+                {consoleLog}
+              </div>
+              <Progress
+                className="h-2 bg-gray-300 dark:bg-gray-800"
+                value={progress}
+              />
+              <div className="text-gray-600 dark:text-gray-400">
+                {progress}% Complete
+              </div>
             </div>
           </div>
         </div>
+        </div>
       </main>
+
       <footer className="bg-gray-900 py-4 px-6 text-white">
         <div className="container mx-auto flex items-center justify-center">
           <p>
             © 2024 Excel Comparator. All rights reserved by{" "}
-            <Link
-              className="hover:underline"
-              href="http://booksmartconsult.com/"
-            >
-              &nbsp;BCL
+            <Link className="hover:underline" href="http://booksmartconsult.com/">
+              BCL
             </Link>
           </p>
         </div>
       </footer>
     </div>
+    
   );
 }
 
