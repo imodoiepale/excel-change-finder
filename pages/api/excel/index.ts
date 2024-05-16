@@ -1,5 +1,4 @@
-// @ts-nocheck
-// @ts-ignore
+
 // @ts-nocheck
 // @ts-ignore
 import { IncomingForm } from 'formidable';
