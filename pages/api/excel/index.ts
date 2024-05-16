@@ -1,7 +1,5 @@
 // @ts-nocheck
 // @ts-ignore
-// @ts-nocheck
-// @ts-ignore
 import { IncomingForm } from 'formidable';
 import fs from 'fs/promises';
 import fsSync from 'fs';
@@ -180,7 +178,7 @@ export default async function handler(req, res) {
     } catch (error) {
       console.error('Error processing Excel files:', error);
       sendProgressUpdate(0, 'Error processing Excel files');
-      return res.status(500).json({ error: 'Error processing Excel files' });
+      return res.status(500).json({ error: `Error processing Excel files: ${error.message}` });
     }
   });
 }
