@@ -1,8 +1,6 @@
 
 // @ts-nocheck
 // @ts-ignore
-// @ts-nocheck
-// @ts-ignore
 import { useEffect, useState } from 'react';
 import Link from "next/link";
 import { Label } from "@/components/ui/label";
@@ -19,6 +17,16 @@ export function Change_Finder() {
   const [isLoading, setIsLoading] = useState(false);
   const [consoleLog, setConsoleLog] = useState('');
   const [downloadedFilePath, setDownloadedFilePath] = useState(null);
+
+  useEffect(() => {
+    const eventSource = new EventSource('/api/progress');
+    eventSource.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      setProgress(data.progress);
+      setConsoleLog(data.consoleLog);
+    };
+    return () => eventSource.close();
+  }, []);
 
   const handleFileUpload = async () => {
     if (!mainFile || !variantFile) {
@@ -39,21 +47,24 @@ export function Change_Finder() {
       });
 
       if (!response.ok) {
-        throw new Error('Error comparing files');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error comparing files');
       }
 
       const data = await response.json();
-      setDownloadedFilePath(data.resultFilePath); 
+      setDownloadedFilePath(data.downloadLink); 
+      toast.success('Files compared successfully');
     } catch (error) {
       console.error('Error:', error);
-      toast.error('Error comparing files. Please try again.');
+      toast.error(`Error comparing files: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
   };
+
   return (
     <div className="flex min-h-screen flex-col">
-      <Toaster position="bottom-right" reverseOrder={false} />
+      <Toaster position="top-right" reverseOrder={false}  toastOptions={{duration: 5000,}}/>
       <header className="bg-gray-900 py-4 px-6 text-white">
         <div className="container mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-4">
@@ -107,7 +118,7 @@ export function Change_Finder() {
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Compairing...
+                  Comparing...
                 </>
               ) : (
                 "Compare Files"
@@ -129,19 +140,21 @@ export function Change_Finder() {
                 {progress}% Complete
               </div>
             </div>
-            <div className=" justify-center text-center flex space-x-6 mt-6">
-              <div>
-                <Link href="/Comparison Results.xlsx" passHref>
-                  <Button className="w-full ">Download Compared File</Button>
-                </Link>
+            {progress === 100 && (
+              <div className=" justify-center text-center flex space-x-6 mt-6">
+                <div>
+                  <Link href={downloadedFilePath} passHref>
+                    <Button className="w-full">Download Compared File</Button>
+                  </Link>
+                </div>
+                <div>
+                  <Button className="w-full" onClick={() => window.location.reload()}>
+                    Refresh Page
+                  </Button>
+                </div>
               </div>
-              <div>
-                <Button className="w-full" onClick={() => window.location.reload()}>
-                  Refresh Page
-                </Button>
-              </div>
+            )}
           </div>
-        </div>
         </div>
       </main>
 
@@ -156,7 +169,6 @@ export function Change_Finder() {
         </div>
       </footer>
     </div>
-    
   );
 }
 
