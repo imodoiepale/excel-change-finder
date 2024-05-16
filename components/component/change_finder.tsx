@@ -33,7 +33,7 @@ export function Change_Finder() {
     formData.append('variantFile', variantFile);
 
     try {
-      const response = await fetch('/api/compare', {
+      const response = await fetch('/api/excel', {
         method: 'POST',
         body: formData,
       });
