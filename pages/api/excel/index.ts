@@ -19,7 +19,7 @@ function columnToLetter(column) {
 
 export const config = {
   api: {
-    bodyParser: false,
+    bodyParser: true,
     externalResolver: true,
   },
 };
