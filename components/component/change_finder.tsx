@@ -140,23 +140,6 @@ export function Change_Finder() {
                   Refresh Page
                 </Button>
               </div>
-
-            {/*  (Optional) Progress bar and logs */}
-            <div className="text-gray-900 dark:text-white">
-              Comparison Progress:
-            </div>
-            <div className="space-y-2 text-center">
-              <div className="text-gray-600 dark:text-gray-400">
-                {consoleLog}
-              </div>
-              <Progress
-                className="h-2 bg-gray-300 dark:bg-gray-800"
-                value={progress}
-              />
-              <div className="text-gray-600 dark:text-gray-400">
-                {progress}% Complete
-              </div>
-            </div>
           </div>
         </div>
         </div>
