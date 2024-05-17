@@ -15,6 +15,7 @@ export function Change_Finder() {
   const [variantFile, setVariantFile] = useState(null);
   const [progress, setProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoading2, setIsLoading2] = useState(false);
   const [consoleLog, setConsoleLog] = useState('');
   const [downloadUrl, setDownloadUrl] = useState(null);
   const [downloadSuccess , setDownloadSuccess] = useState(null);
@@ -146,17 +147,19 @@ export function Change_Finder() {
       sendProgressUpdate(100, 'Files processed successfully!');
 
       setDownloadUrl(downloadUrl);
+      toast.success('Files Compared Successfully!')
 
     } catch (error) {
       console.error('Error processing files:', error);
       sendProgressUpdate(0, 'An error occurred while processing the files.');
+      toast.error('FILE COMPARISON ERROR!')
     } finally {
       setIsLoading(false);
     }
   };
 
   const downloadExcelFile = async (downloadUrl) => {
-    setIsLoading(true); // Set isLoading to true when download starts
+    setIsLoading2(true); // Set isLoading to true when download starts
     try {
       // Your code to trigger file download
       // For example:
@@ -170,12 +173,12 @@ export function Change_Finder() {
       link.click();
       link.parentNode.removeChild(link);
       setTimeout(() => {
-        setIsLoading(false);
+        setIsLoading2(false);
       }, 3000);
       setDownloadSuccess(true);
     } catch (error) {
       console.error('Error downloading file:', error);
-      setIsLoading(false); // Set isLoading to false if download fails
+      setIsLoading2(false); // Set isLoading to false if download fails
     }
   };
 
@@ -194,7 +197,7 @@ export function Change_Finder() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Toaster position="top-right" reverseOrder={false} toastOptions={{ duration: 5000 }} />
+      <Toaster position="top-right" reverseOrder={false} toastOptions={{ duration: 3000 }} />
       <header className="bg-gray-900 py-4 px-6 text-white">
         <div className="container mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-4">
@@ -272,12 +275,12 @@ export function Change_Finder() {
             {progress === 100 && (
               <div className=" justify-center text-center flex space-x-6 mt-6">
                 <div>
-                {isLoading ? (
+                {isLoading2 ? (
                     <Button className="w-full" disabled>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Downloading...
                     </Button>
                   ) : downloadSuccess ? (
-                    <Button className="w-full bg-green-500 hover:bg-green-600" onClick={() => setIsLoading(false)}>Download Successful</Button>
+                    <Button className="w-full bg-green-700 hover:bg-green-600" onClick={() => setIsLoading2(false)}>Download Successful</Button>
                   ) : (
                     <Button className="w-full" onClick={() => downloadExcelFile(downloadUrl)}>Download Compared File</Button>
                   )}
