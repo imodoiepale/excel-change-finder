@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Loader2 } from "lucide-react";
 import toast, { Toaster } from 'react-hot-toast';
-import ExcelJS from 'exceljs';
+import * as ExcelJS from 'exceljs'; 
 
 export function Change_Finder() {
   const [mainFile, setMainFile] = useState(null);
@@ -16,7 +16,7 @@ export function Change_Finder() {
   const [progress, setProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [consoleLog, setConsoleLog] = useState('');
-  const [downloadedFilePath, setDownloadedFilePath] = useState(null);
+  const [downloadUrl, setDownloadUrl] = useState(null);
 
   const sendProgressUpdate = (progress, message) => {
     setProgress(progress);
@@ -102,7 +102,6 @@ export function Change_Finder() {
 
           const mainValue = mainWorksheet.getCell(rowNumber, colNumber).value;
           const variantValue = variantWorksheet.getCell(rowNumber, colNumber).value;
-          const cellAddress = columnToLetter(colNumber) + rowNumber;
           const variantCell = variantWorksheetCopy.getCell(rowNumber, colNumber);
           variantCell.value = variantValue;
 
@@ -136,16 +135,29 @@ export function Change_Finder() {
       });
       sendProgressUpdate(95, 'Adjusted column widths');
 
-      const resultBuffer = await resultWorkbook.xlsx.writeBuffer();
-      const resultFilePath = 'Comparison Results.xlsx';
-      setDownloadedFilePath(URL.createObjectURL(new Blob([resultBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })));
-      sendProgressUpdate(100, 'Comparison completed');
+      const outputBuffer = await resultWorkbook.xlsx.writeBuffer();
+      const outputBlob = new Blob([outputBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const downloadUrl = URL.createObjectURL(outputBlob);
+
+      sendProgressUpdate(100, 'Files processed successfully!');
+
+      setDownloadUrl(downloadUrl);
+
     } catch (error) {
       console.error('Error processing files:', error);
       sendProgressUpdate(0, 'An error occurred while processing the files.');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const downloadExcelFile = (url) => {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'COMPARED RESULTS.xlsx';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const columnToLetter = (columnIndex) => {
@@ -160,6 +172,7 @@ export function Change_Finder() {
 
     return columnName;
   };
+
   return (
     <div className="flex min-h-screen flex-col">
       <Toaster position="top-right" reverseOrder={false} toastOptions={{ duration: 5000 }} />
@@ -240,9 +253,7 @@ export function Change_Finder() {
             {progress === 100 && (
               <div className=" justify-center text-center flex space-x-6 mt-6">
                 <div>
-                  <Link href={downloadedFilePath} passHref>
-                    <Button className="w-full">Download Compared File</Button>
-                  </Link>
+                    <Button className="w-full" onClick={() => downloadExcelFile(downloadUrl)}>Download Compared File</Button>
                 </div>
                 <div>
                   <Button
