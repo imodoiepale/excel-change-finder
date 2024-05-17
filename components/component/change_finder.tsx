@@ -17,6 +17,7 @@ export function Change_Finder() {
   const [isLoading, setIsLoading] = useState(false);
   const [consoleLog, setConsoleLog] = useState('');
   const [downloadUrl, setDownloadUrl] = useState(null);
+  const [downloadSuccess , setDownloadSuccess] = useState(null);
 
   const sendProgressUpdate = (progress, message) => {
     setProgress(progress);
@@ -33,8 +34,6 @@ export function Change_Finder() {
       return;
     }
     try {
-      console.log('Main File Path:', mainFile);
-      console.log('Variant File Path:', variantFile);
     
       const mainWorkbook = new ExcelJS.Workbook();
       const variantWorkbook = new ExcelJS.Workbook();
@@ -58,9 +57,14 @@ export function Change_Finder() {
       // Copy main and variant worksheets
       mainWorksheet.eachRow((row, rowNumber) => {
         row.eachCell((cell, colNumber) => {
-          mainWorksheetCopy.getCell(rowNumber, colNumber).value = cell.value;
+          const targetCell = mainWorksheetCopy.getCell(rowNumber, colNumber);
+          targetCell.value = cell.value;
+      
+          // Copy styles
+          targetCell.style = cell.style;
         });
       });
+      
       sendProgressUpdate(50, 'Main worksheet copied');
 
       variantWorksheet.eachRow((row, rowNumber) => {
@@ -151,13 +155,28 @@ export function Change_Finder() {
     }
   };
 
-  const downloadExcelFile = (url) => {
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'COMPARED RESULTS.xlsx';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const downloadExcelFile = async (downloadUrl) => {
+    setIsLoading(true); // Set isLoading to true when download starts
+    try {
+      // Your code to trigger file download
+      // For example:
+      const response = await fetch(downloadUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'COMPARED_RESULTS.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 3000);
+      setDownloadSuccess(true);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      setIsLoading(false); // Set isLoading to false if download fails
+    }
   };
 
   const columnToLetter = (columnIndex) => {
@@ -253,7 +272,15 @@ export function Change_Finder() {
             {progress === 100 && (
               <div className=" justify-center text-center flex space-x-6 mt-6">
                 <div>
+                {isLoading ? (
+                    <Button className="w-full" disabled>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Downloading...
+                    </Button>
+                  ) : downloadSuccess ? (
+                    <Button className="w-full bg-green-500 hover:bg-green-600" onClick={() => setIsLoading(false)}>Download Successful</Button>
+                  ) : (
                     <Button className="w-full" onClick={() => downloadExcelFile(downloadUrl)}>Download Compared File</Button>
+                  )}
                 </div>
                 <div>
                   <Button
