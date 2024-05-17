@@ -31,14 +31,9 @@ export default async function handler(req, res) {
   }
 
   const form = new IncomingForm();
-  const uploadDir = path.join(process.cwd(), 'tmp');
-
-  if (!fsSync.existsSync(uploadDir)) {
-    fsSync.mkdirSync(uploadDir, { recursive: true });
-  }
-
-  form.uploadDir = uploadDir;
-  form.keepExtensions = true;
+  
+  const mainFileDataData = await getFileData(mainFileData);
+  const variantFileData = await getFileData(variantFile);
 
   form.parse(req, async (err, fields, files) => {
     if (err) {
@@ -47,18 +42,18 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Error parsing form' });
     }
 
-    const mainFile = files.mainFile?.[0] || files.mainFile;
+    const mainFileData = files.mainFileData?.[0] || files.mainFileData;
     const variantFile = files.variantFile?.[0] || files.variantFile;
 
-    if (!mainFile || !variantFile) {
+    if (!mainFileData || !variantFile) {
       sendProgressUpdate(0, 'Missing file uploads');
       return res.status(400).json({ error: 'Missing file uploads' });
     }
 
-    const mainFilePath = mainFile.filepath;
+    const mainFileDataPath = mainFileData.filepath;
     const variantFilePath = variantFile.filepath;
 
-    if (!mainFilePath || !variantFilePath) {
+    if (!mainFileDataPath || !variantFilePath) {
       sendProgressUpdate(0, 'Error obtaining file paths');
       return res.status(500).json({ error: 'Error obtaining file paths' });
     }
@@ -67,7 +62,7 @@ export default async function handler(req, res) {
       const mainWorkbook = new ExcelJS.Workbook();
       const variantWorkbook = new ExcelJS.Workbook();
 
-      await mainWorkbook.xlsx.readFile(mainFilePath);
+      await mainWorkbook.xlsx.readFile(mainFileDataPath);
       sendProgressUpdate(10, 'Main file read successfully');
 
       await variantWorkbook.xlsx.readFile(variantFilePath);
@@ -166,13 +161,6 @@ export default async function handler(req, res) {
       const resultFilePath = path.join(process.cwd(), 'public', 'Comparison Results.xlsx');
       await fs.writeFile(resultFilePath, resultBuffer);
       sendProgressUpdate(100, 'Comparison completed');
-
-      try {
-        await fs.unlink(mainFilePath);
-        await fs.unlink(variantFilePath);
-      } catch (err) {
-        console.error('Error deleting temporary files:', err);
-      }
 
       const downloadLink = `${req.headers.origin}/Comparison Results.xlsx`;
       return res.status(200).json({ downloadLink });

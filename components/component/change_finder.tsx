@@ -1,4 +1,3 @@
-
 // @ts-nocheck
 // @ts-ignore
 import { useEffect, useState } from 'react';
@@ -9,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Loader2 } from "lucide-react";
 import toast, { Toaster } from 'react-hot-toast';
+import ExcelJS from 'exceljs';
 
 export function Change_Finder() {
   const [mainFile, setMainFile] = useState(null);
@@ -18,53 +18,151 @@ export function Change_Finder() {
   const [consoleLog, setConsoleLog] = useState('');
   const [downloadedFilePath, setDownloadedFilePath] = useState(null);
 
-  useEffect(() => {
-    const eventSource = new EventSource('/api/progress');
-    eventSource.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      setProgress(data.progress);
-      setConsoleLog(data.consoleLog);
-    };
-    return () => eventSource.close();
-  }, []);
+  const sendProgressUpdate = (progress, message) => {
+    setProgress(progress);
+    setConsoleLog(message);
+  };
 
-  const handleFileUpload = async () => {
+  const compareExcelFiles = async () => {
+    setIsLoading(true);
+    sendProgressUpdate(5, 'Processing files...');
+  
     if (!mainFile || !variantFile) {
-      toast.error('Please select both main and variant files');
+      sendProgressUpdate(0, 'Please upload both main and variant files.');
+      setIsLoading(false);
       return;
     }
-
-    setIsLoading(true);
-
-    const formData = new FormData();
-    formData.append('mainFile', mainFile);
-    formData.append('variantFile', variantFile);
-
     try {
-      const response = await fetch('/api/excel', {
-        method: 'POST',
-        body: formData,
+      console.log('Main File Path:', mainFile);
+      console.log('Variant File Path:', variantFile);
+    
+      const mainWorkbook = new ExcelJS.Workbook();
+      const variantWorkbook = new ExcelJS.Workbook();
+  
+      const mainFileBuffer = await mainFile.arrayBuffer();
+      await mainWorkbook.xlsx.load(mainFileBuffer);
+      sendProgressUpdate(20, 'Main file read successfully');
+  
+      const variantFileBuffer = await variantFile.arrayBuffer();
+      await variantWorkbook.xlsx.load(variantFileBuffer);
+      sendProgressUpdate(40, 'Variant file read successfully');
+
+      const mainWorksheet = mainWorkbook.worksheets[0];
+      const variantWorksheet = variantWorkbook.worksheets[0];
+
+      const resultWorkbook = new ExcelJS.Workbook();
+      const mainWorksheetCopy = resultWorkbook.addWorksheet('Main Worksheet');
+      const variantWorksheetCopy = resultWorkbook.addWorksheet('Variant Worksheet');
+      const commentsWorksheet = resultWorkbook.addWorksheet('Comments');
+
+      // Copy main and variant worksheets
+      mainWorksheet.eachRow((row, rowNumber) => {
+        row.eachCell((cell, colNumber) => {
+          mainWorksheetCopy.getCell(rowNumber, colNumber).value = cell.value;
+        });
       });
+      sendProgressUpdate(50, 'Main worksheet copied');
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error comparing files');
-      }
+      variantWorksheet.eachRow((row, rowNumber) => {
+        row.eachCell((cell, colNumber) => {
+          variantWorksheetCopy.getCell(rowNumber, colNumber).value = cell.value;
+        });
+      });
+      sendProgressUpdate(60, 'Variant worksheet copied');
 
-      const data = await response.json();
-      setDownloadedFilePath(data.downloadLink); 
-      toast.success('Files compared successfully');
+      mainWorksheet.eachRow((row, rowNumber) => {
+        if (rowNumber > 1) {
+          let changedCells = [];
+          for (let colNumber = 1; colNumber <= mainWorksheet.columnCount; colNumber++) {
+            const mainValue = mainWorksheet.getCell(rowNumber, colNumber).value;
+            const variantValue = variantWorksheet.getCell(rowNumber, colNumber).value;
+            if (mainValue !== variantValue) {
+              changedCells.push(columnToLetter(colNumber) + rowNumber);
+            }
+          }
+          if (changedCells.length > 0) {
+            commentsWorksheet.addRow([`Row ${rowNumber}`, `${changedCells.join(', ')} has changed`]);
+          } else {
+            const row = commentsWorksheet.addRow([`Row ${rowNumber}`, `No change in row ${rowNumber}`]);
+            row.eachCell((cell) => {
+              cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFFFFF00' },
+              };
+            });
+          }
+        }
+      });
+      sendProgressUpdate(70, 'Compared main and variant worksheets');
+
+      mainWorksheet.eachRow({ includeEmpty: true }, (row, rowNumber) => {
+        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+          if (colNumber < 1) return;
+
+          const mainValue = mainWorksheet.getCell(rowNumber, colNumber).value;
+          const variantValue = variantWorksheet.getCell(rowNumber, colNumber).value;
+          const cellAddress = columnToLetter(colNumber) + rowNumber;
+          const variantCell = variantWorksheetCopy.getCell(rowNumber, colNumber);
+          variantCell.value = variantValue;
+
+          if (mainValue !== variantValue) {
+            variantCell.fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: { argb: 'FFFF0000' },
+            };
+          } else {
+            variantCell.fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: { argb: 'FF00FF00' },
+            };
+          }
+        });
+      });
+      sendProgressUpdate(90, 'Highlighted cells in variant worksheet');
+
+      ['Main Worksheet', 'Variant Worksheet', 'Comments'].forEach(sheetName => {
+        const worksheet = resultWorkbook.getWorksheet(sheetName);
+        worksheet.columns.forEach((column, columnIndex) => {
+          let maxLength = 0;
+          column.eachCell((cell, rowIndex) => {
+            const cellLength = cell.value ? cell.value.toString().length : 0;
+            if (cellLength > maxLength) maxLength = cellLength;
+          });
+          worksheet.getColumn(columnIndex + 1).width = maxLength + 2;
+        });
+      });
+      sendProgressUpdate(95, 'Adjusted column widths');
+
+      const resultBuffer = await resultWorkbook.xlsx.writeBuffer();
+      const resultFilePath = 'Comparison Results.xlsx';
+      setDownloadedFilePath(URL.createObjectURL(new Blob([resultBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })));
+      sendProgressUpdate(100, 'Comparison completed');
     } catch (error) {
-      console.error('Error:', error);
-      toast.error(`Error comparing files: ${error.message}`);
+      console.error('Error processing files:', error);
+      sendProgressUpdate(0, 'An error occurred while processing the files.');
     } finally {
       setIsLoading(false);
     }
   };
 
+  const columnToLetter = (columnIndex) => {
+    let columnName = '';
+    let dividend = columnIndex;
+
+    while (dividend > 0) {
+      const modulo = (dividend - 1) % 26;
+      columnName = String.fromCharCode(65 + modulo) + columnName;
+      dividend = Math.floor((dividend - modulo) / 26);
+    }
+
+    return columnName;
+  };
   return (
     <div className="flex min-h-screen flex-col">
-      <Toaster position="top-right" reverseOrder={false}  toastOptions={{duration: 5000,}}/>
+      <Toaster position="top-right" reverseOrder={false} toastOptions={{ duration: 5000 }} />
       <header className="bg-gray-900 py-4 px-6 text-white">
         <div className="container mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-4">
@@ -74,7 +172,7 @@ export function Change_Finder() {
         </div>
       </header>
 
-      <main className="flex-1 bg-gray-100 py-12 px-6 dark:bg-gray-900 ">
+      <main className="flex-1 bg-gray-100 py-12 px-6 dark:bg-gray-900">
         <div className="container mx-auto max-w-3xl space-y-8">
           <div className="space-y-4">
             <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
@@ -111,8 +209,7 @@ export function Change_Finder() {
               </div>
             </div>
             <Button
-              className="w-full"
-              onClick={handleFileUpload}
+              className="w-full" onClick={compareExcelFiles}
               disabled={isLoading}
             >
               {isLoading ? (
@@ -148,7 +245,10 @@ export function Change_Finder() {
                   </Link>
                 </div>
                 <div>
-                  <Button className="w-full" onClick={() => window.location.reload()}>
+                  <Button
+                    className="w-full"
+                    onClick={() => window.location.reload()}
+                  >
                     Refresh Page
                   </Button>
                 </div>
@@ -162,7 +262,10 @@ export function Change_Finder() {
         <div className="container mx-auto flex items-center justify-center">
           <p>
             © 2024 Excel Comparator. All rights reserved by{" "}
-            <Link className="hover:underline" href="http://booksmartconsult.com/">
+            <Link
+              className="hover:underline"
+              href="http://booksmartconsult.com/"
+            >
               BCL
             </Link>
           </p>
