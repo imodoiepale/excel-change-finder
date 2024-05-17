@@ -30,6 +30,7 @@ export function Change_Finder() {
     sendProgressUpdate(5, 'Processing files...');
   
     if (!mainFile || !variantFile) {
+      toast.error('Please upload both main and variant files!')
       sendProgressUpdate(0, 'Please upload both main and variant files.');
       setIsLoading(false);
       return;
